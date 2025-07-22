@@ -57,7 +57,7 @@ async def github_search_manually(keyword, language, since):
     lang = language or "all"
     filename = f"{ts}_{keyword}_{lang}.json"
     path = os.path.join(folder, filename)
-    with open(path, "w", encoding="utf-8") as f:
+    with open("github_monitor/results.json", "w", encoding="utf-8") as f:
         json.dump(matched, f, ensure_ascii=False, indent=2)
 
     db = SessionLocal()

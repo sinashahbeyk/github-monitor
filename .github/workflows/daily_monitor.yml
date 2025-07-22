@@ -24,3 +24,12 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.MONITOR_GITHUB_TOKEN }}
       run: python scheduler.py
+
+    - name: Commit and push results
+      run: |
+          git config user.name "sinashahbeyk"
+          git config user.email "Sinashahbeyk@github.com"
+          git add github_monitor/github_repos.db || true
+          git add github_monitor/results.json || true
+          git commit -m "Update GitHub repo scan results" || echo "No changes to commit"
+          git push origin main
