@@ -1,17 +1,28 @@
-from fastapi import FastAPI, Query
-from fastapi.responses import JSONResponse
 from models import Base, engine
-from typing import Optional
-from github_scanner import github_search_manually
+from fastapi import FastAPI, Query
+from scheduler import start_scheduler
 from datetime import datetime, timedelta
+from fastapi.responses import JSONResponse
+from github_scanner import github_search_manually
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
+scheduler = start_scheduler()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler.start()
+    print("INFO:     Monitoring started")
+    yield
+    scheduler.shutdown()
+    print("INFO:     Monitoring shut down")
+
+
+app = FastAPI(lifespan=lifespan)
 
 @app.get("/")
-def root():
-    return {"message": "GitHub Monitor running"}
+def index():
+    return {"message": "GitHub Monitoring"}
 
 @app.get("/search")
 async def github_search(
