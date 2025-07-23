@@ -2,12 +2,14 @@ import asyncio, os, json
 from models import Base, engine
 from datetime import datetime, timedelta
 from models import SessionLocal, Repository
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from github_scanner import github_monitor, match_exact_keyword
 
 Base.metadata.create_all(bind=engine)
 
-MONITORED_KEYWORDS = ["edr"]
-MONITORED_LANGUAGES = ["python", "c", "c++", "go"]
+MONITORED_KEYWORDS = ["edr", "malware]
+MONITORED_LANGUAGES = ["python", "go"]
 
 async def save_if_not_exists(repo, keyword):
     db = SessionLocal()
@@ -25,18 +27,29 @@ async def save_if_not_exists(repo, keyword):
 
 async def daily_monitor():
     since = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    for kw in MONITORED_KEYWORDS:
-        for lang in MONITORED_LANGUAGES:
-            repos = await github_monitor(kw, lang, since)
-            matched = [r for r in repos if match_exact_keyword(r, kw)]
+    print(f"[{datetime.now()}] Starting daily scan since {since}")
+    for keyword in MONITORED_KEYWORDS:
+        for language in MONITORED_LANGUAGES:
+            repos = await github_monitor(keyword, language, since)
+            matches = [r for r in repos if match_exact_keyword(r, keyword)]
+            os.makedirs("github_monitor", exist_ok=True)
+            date_str = datetime.now().strftime("%Y-%m-%d")
+            fname = f"{keyword}_{language}_{date_str}.json"
+            with open(os.path.join("github_monitor", fname), "w", encoding="utf-8") as f:
+                json.dump(matches, f, ensure_ascii=False, indent=2)
 
-            folder = "github_monitor"
-            os.makedirs(folder, exist_ok=True)
-            fname = f"{since.split('T')[0]}_{kw}_{lang}.json"
-            with open(os.path.join(folder, fname), "w", encoding="utf-8") as f:
-                json.dump(matched, f, indent=2)
+            await asyncio.gather(*(save_if_not_exists(r, keyword) for r in matches))
 
-            await asyncio.gather(*(save_if_not_exists(r, kw) for r in matched))
+
+def start_scheduler():
+    scheduler = AsyncIOScheduler()
+    trigger = CronTrigger(hour=9, minute=30, timezone="Asia/Tehran")
+    scheduler.add_job(daily_monitor, trigger,
+                      id="daily_github_monitor",
+                      replace_existing=True, 
+                      misfire_grace_time=3600
+                      )  
+    return scheduler
 
 
 if __name__ == "__main__":
