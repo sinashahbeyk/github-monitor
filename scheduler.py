@@ -8,7 +8,7 @@ from github_scanner import github_monitor, match_exact_keyword
 
 Base.metadata.create_all(bind=engine)
 
-MONITORED_KEYWORDS = ["edr", "malware]
+MONITORED_KEYWORDS = ["edr", "malware"]
 MONITORED_LANGUAGES = ["python", "go"]
 
 async def save_if_not_exists(repo, keyword):
